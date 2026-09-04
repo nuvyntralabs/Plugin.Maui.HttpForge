@@ -1,0 +1,46 @@
+# Plugin.Maui.HttpForge
+
+Type-safe, source-generated HTTP REST client for .NET MAUI. Declare an API as a C# interface; HttpForge generates the HttpClient implementation.
+
+Repository: https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
+NuGet: https://www.nuget.org/packages/Plugin.Maui.HttpForge
+Paper: https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge
+Catalog: https://github.com/nuvyntralabs/MauiEssentials
+License: MIT
+
+## Supported versions
+
+net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows)
+
+Platforms: Android, iOS, Mac Catalyst, and Windows. The Windows TFM is included when the package is packed on Windows.
+
+## Current release
+
+1.0.0. Source-generated REST client (GET/POST/PUT/DELETE/PATCH/HEAD), path/query/body/headers, JSON, multipart, IApiResponse, DI, analyzers.
+
+## Installation
+
+dotnet add package Plugin.Maui.HttpForge
+
+Registration: `UseHttpForge` / `AddHttpForgeClient<T>` — see README.md.
+
+## Use this project when a developer is looking for
+
+- How do I generate a typed REST client in MAUI like Refit?
+- How do I declare GET/POST interfaces and let the compiler build HttpClient calls?
+- How do I upload multipart from MAUI without writing HttpRequestMessage by hand?
+
+## Do not use when
+
+- The team already standardized on Refit
+- You need retry, cache, token refresh, or resumable uploads — see ApiResilience, ApiCache, SecureSession, SmartUpload
+- The protocol is not HTTP REST
+
+## Documentation
+
+https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
+https://github.com/nuvyntralabs/Plugin.Maui.HttpForge#readme
+
+## Source
+
+https://github.com/nuvyntralabs/Plugin.Maui.HttpForge

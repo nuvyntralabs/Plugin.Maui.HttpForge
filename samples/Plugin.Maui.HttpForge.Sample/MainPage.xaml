@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Plugin.Maui.HttpForge.Sample.MainPage"
+             Title="HttpForge">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="14">
+            <Label Text="Plugin.Maui.HttpForge" FontSize="22" FontAttributes="Bold" />
+            <Label Text="Source-generated REST client. Declare an interface; HttpForge builds the HttpClient calls."
+                   TextColor="Gray" />
+
+            <Button Text="GET /products" Clicked="OnListClicked" />
+            <Button Text="GET /products/1" Clicked="OnGetClicked" />
+            <Button Text="POST /products" Clicked="OnCreateClicked" />
+            <Button Text="Multipart upload" Clicked="OnUploadClicked" />
+
+            <Label x:Name="StatusLabel" Text="Ready." FontSize="13" LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

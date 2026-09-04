@@ -10,19 +10,21 @@ License: MIT
 
 ## Supported versions
 
-net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows)
+net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows and merged into the published nupkg)
 
-Platforms: Android, iOS, Mac Catalyst, and Windows. The Windows TFM is included when the package is packed on Windows.
+Platforms: Android, iOS, Mac Catalyst, and Windows.
 
 ## Current release
 
-1.0.0. Source-generated REST client (GET/POST/PUT/DELETE/PATCH/HEAD), path/query/body/headers, JSON, multipart, IApiResponse, DI, analyzers.
+1.0.1. Source-generated REST client (GET/POST/PUT/DELETE/PATCH/HEAD), path/query/body/headers, JSON, multipart, IApiResponse, DI, analyzers. Published nupkg includes the packed `net10.0-windows` TFM.
 
 ## Installation
 
 dotnet add package Plugin.Maui.HttpForge
 
 Registration: `UseHttpForge` / `AddHttpForgeClient<T>` — see README.md.
+
+Compose retry / cache / tokens / resume on the same `IHttpClientBuilder`: Docs/integration.md.
 
 ## Use this project when a developer is looking for
 
@@ -40,6 +42,7 @@ Registration: `UseHttpForge` / `AddHttpForgeClient<T>` — see README.md.
 
 https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
 https://github.com/nuvyntralabs/Plugin.Maui.HttpForge#readme
+https://github.com/nuvyntralabs/Plugin.Maui.HttpForge/blob/main/Docs/integration.md
 
 ## Source
 

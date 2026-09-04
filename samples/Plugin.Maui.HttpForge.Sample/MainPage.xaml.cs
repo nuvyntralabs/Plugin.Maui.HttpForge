@@ -6,56 +6,67 @@ namespace Plugin.Maui.HttpForge.Sample;
 
 public partial class MainPage : ContentPage
 {
-    private readonly ICatalogApi _api;
+    private readonly IPostApi _posts;
+    private readonly IHttpBinApi _httpBin;
 
-    public MainPage(ICatalogApi api)
+    public MainPage(IPostApi posts, IHttpBinApi httpBin)
     {
         InitializeComponent();
-        _api = api;
+        _posts = posts;
+        _httpBin = httpBin;
     }
 
     private async void OnListClicked(object? sender, EventArgs e)
     {
-        await RunAsync("List", async () =>
+        await RunAsync("GET https://jsonplaceholder.typicode.com/posts", async () =>
         {
-            var products = await _api.ListAsync();
-            return string.Join(Environment.NewLine, products.Select(p => $"{p.Id}. {p.Name}"));
+            var posts = await _posts.ListAsync();
+            return string.Join(Environment.NewLine, posts.Take(8).Select(p => $"{p.Id}. {p.Title}"));
         });
     }
 
     private async void OnGetClicked(object? sender, EventArgs e)
     {
-        await RunAsync("Get", async () =>
+        await RunAsync("GET https://jsonplaceholder.typicode.com/posts/1", async () =>
         {
-            var product = await _api.GetAsync(1);
-            return $"{product.Id}. {product.Name}";
+            var post = await _posts.GetAsync(1);
+            return $"{post.Id}. {post.Title}{Environment.NewLine}{post.Body}";
         });
     }
 
     private async void OnCreateClicked(object? sender, EventArgs e)
     {
-        await RunAsync("Create", async () =>
+        await RunAsync("POST https://jsonplaceholder.typicode.com/posts", async () =>
         {
-            var product = await _api.CreateAsync(new CreateProductRequest { Name = "Masala chai" });
-            return $"Created {product.Id}. {product.Name}";
+            var created = await _posts.CreateAsync(new CreatePostRequest
+            {
+                Title = "HttpForge sample",
+                Body = "Posted from Plugin.Maui.HttpForge",
+                UserId = 1
+            });
+            return $"Created id {created.Id}: {created.Title}";
         });
     }
 
     private async void OnUploadClicked(object? sender, EventArgs e)
     {
-        await RunAsync("Upload", async () =>
+        await RunAsync("POST https://httpbin.org/post", async () =>
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("demo-photo"));
-            await _api.UploadPhotoAsync(1, new StreamPart(stream, "photo.jpg", "image/jpeg"));
-            return "Uploaded photo.jpg as multipart/form-data.";
+            var response = await _httpBin.UploadAsync(new StreamPart(stream, "photo.jpg", "image/jpeg"));
+            var files = response.Files is { Count: > 0 }
+                ? string.Join(", ", response.Files.Keys)
+                : "(none)";
+            return $"Echo from {response.Url}{Environment.NewLine}Files: {files}";
         });
     }
 
     private async Task RunAsync(string title, Func<Task<string>> action)
     {
+        StatusLabel.Text = $"{title}…";
         try
         {
-            StatusLabel.Text = $"{title}:{Environment.NewLine}{await action()}";
+            StatusLabel.Text = $"{title}{Environment.NewLine}{await action()}";
         }
         catch (Exception ex)
         {

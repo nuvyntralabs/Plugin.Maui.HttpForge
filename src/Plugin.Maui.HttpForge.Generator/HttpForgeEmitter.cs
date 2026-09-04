@@ -14,13 +14,24 @@ internal static class HttpForgeEmitter
         builder.AppendLine("using Plugin.Maui.HttpForge;");
         builder.AppendLine();
 
+        var clientName = model.InterfaceName + "_HttpForgeClient";
+        var clientFullName = string.IsNullOrEmpty(model.Namespace)
+            ? clientName
+            : model.Namespace + "." + clientName;
+
+        builder.Append("[assembly: Plugin.Maui.HttpForge.HttpForgeClient(typeof(")
+            .Append(model.TypeFullName)
+            .Append("), typeof(global::")
+            .Append(clientFullName)
+            .AppendLine("))]");
+        builder.AppendLine();
+
         if (!string.IsNullOrEmpty(model.Namespace))
         {
             builder.Append("namespace ").Append(model.Namespace).AppendLine(";");
             builder.AppendLine();
         }
 
-        var clientName = model.InterfaceName + "_HttpForgeClient";
         builder.Append("internal sealed class ").Append(clientName).Append(" : ").Append(model.TypeFullName).AppendLine();
         builder.AppendLine("{");
         builder.AppendLine("    private readonly HttpClient _client;");
@@ -38,10 +49,7 @@ internal static class HttpForgeEmitter
             EmitMethod(builder, method);
         }
 
-        builder.AppendLine("}");
         builder.AppendLine();
-        builder.Append("file static class ").Append(model.InterfaceName).AppendLine("_HttpForgeRegistration");
-        builder.AppendLine("{");
         builder.AppendLine("    [ModuleInitializer]");
         builder.AppendLine("    internal static void Register()");
         builder.AppendLine("    {");

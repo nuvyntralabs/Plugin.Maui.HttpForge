@@ -1,0 +1,9 @@
+<Project>
+  <!-- ProjectReference does not flow OutputItemType=Analyzer. Sample/tests need the generator. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Plugin.Maui.HttpForge' and '$(MSBuildProjectName)' != 'Plugin.Maui.HttpForge.Generator'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\Plugin.Maui.HttpForge.Generator\Plugin.Maui.HttpForge.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+</Project>

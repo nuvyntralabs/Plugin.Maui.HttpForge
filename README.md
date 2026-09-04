@@ -61,16 +61,20 @@ var api = RestService.For<IUserApi>("https://api.example.com");
 
 ## Compose with sibling plugins
 
+`AddHttpForgeClient` returns `IHttpClientBuilder`, so DelegatingHandlers, `IHttpClientFactory`, and Microsoft resilience pipelines work as usual.
+
 ```csharp
 builder.Services
     .AddHttpForgeClient<IUserApi>(client =>
     {
         client.BaseAddress = new Uri("https://api.example.com");
     })
-    .AddApiResilience();
+    .AddSecureSession()   // Android / iOS tokens + 401
+    .AddApiResilience()   // retry / circuit / offline queue
+    .AddApiCache();       // GET CacheFirst / SWR
 ```
 
-`AddHttpForgeClient` returns `IHttpClientBuilder`, so DelegatingHandlers, `IHttpClientFactory`, and Microsoft resilience pipelines work as usual.
+Full recipes for ApiResilience, ApiCache, SecureSession, and SmartUpload: [Docs/integration.md](Docs/integration.md). Do not stack SecureSession and ApiResilience token refresh on the same client.
 
 ## Features
 
@@ -101,7 +105,7 @@ For chunked resume after process death, use SmartUpload instead of a single mult
 
 ## Target frameworks
 
-The package targets `net10.0`, `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, and `net10.0-windows10.0.19041.0` (Windows TFM when packed on Windows).
+The package targets `net10.0`, `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, and `net10.0-windows10.0.19041.0`. CI packs the Windows TFM on `windows-latest` and merges it into the nupkg published from macOS.
 
 ## Pack from source
 
@@ -137,16 +141,89 @@ A developer asks:
 
 In these situations, Plugin.Maui.HttpForge may be relevant.
 
-## Alternatives
+## HttpForge vs Refit
 
-| Requirement | HttpForge | Refit | Hand-written HttpClient |
-| --- | --- | --- | --- |
-| Type-safe REST interface | Yes | Yes | Manual |
-| Source-generated requests | Yes | Yes (modern Refit) | No |
-| MAUI TFMs + catalog docs | Yes | Broader .NET | — |
-| Retry / offline queue | Compose ApiResilience | Compose Polly | Manual |
+Both libraries use the same idea: declare a REST API as a C# interface, generate the `HttpClient` implementation, and leave transport to the standard .NET HTTP stack.
 
-Do not treat this table as superiority. Prefer Refit when the team already uses it. Prefer HttpForge when you want a MauiEssentials-shaped client that chains with the suite.
+[Refit](https://github.com/reactiveui/refit) is the mature, general-purpose client ([NuGet](https://www.nuget.org/packages/Refit/)). HttpForge is a MauiEssentials-shaped subset for Android, iOS, Mac Catalyst, and Windows. It is not a drop-in Refit replacement.
+
+### Same contract shape
+
+```csharp
+// Both
+[Get("/users/{id}")]
+Task<User> GetUser(int id);
+
+[Post("/users")]
+Task<User> Create([Body] CreateUserRequest request);
+```
+
+Registration is intentionally familiar:
+
+| | HttpForge | Refit |
+| --- | --- | --- |
+| Manual | `RestService.For<IUserApi>(http)` | `RestService.For<IUserApi>(http)` |
+| DI | `AddHttpForgeClient<IUserApi>(...)` | `AddRefitClient<IUserApi>()` |
+| MAUI host | `UseHttpForge()` | no MAUI-specific host API |
+
+### Feature comparison (HttpForge 1.0.0 vs Refit 15)
+
+| Capability | HttpForge | Refit |
+| --- | --- | --- |
+| Interface + `[Get]`/`[Post]`/`[Put]`/`[Delete]`/`[Patch]`/`[Head]` | Yes | Yes |
+| Path parameters, `[AliasAs]`, `[Query]`, `[Body]`, `[Header]`/`[Headers]` | Yes | Yes |
+| Multipart (`StreamPart` / `ByteArrayPart` / `FileInfoPart`) | Yes | Yes |
+| `CancellationToken` | Yes | Yes |
+| `Task<IApiResponse<T>>` | Yes | Yes (`IApiResponse<T>` / `ApiResponse<T>`) |
+| HTTP vs transport exceptions | `ApiException` / `ApiRequestException` | `ApiException` / `ApiRequestException` |
+| Source-generated client **and** request construction | Yes | Yes (Refit 14+) |
+| Compile-time diagnostics | HFG001–HFG006 | Yes (richer analyzer set) |
+| System.Text.Json default | Yes | Yes |
+| `JsonSerializerContext` / AOT hook | Yes | Yes |
+| `IHttpClientFactory` + `DelegatingHandler` | Yes | Yes (`Refit.HttpClientFactory`) |
+| Query objects, collection formats, camel/snake/kebab | No (v1) | Yes |
+| `[Timeout]`, `[Url]`, `[PathPrefix]`, optional route segments | No (v1) | Yes |
+| `[QueryName]` valueless flags, `[FormObject]` | No (v1) | Yes |
+| SSE / `IAsyncEnumerable<T>` / JSON Lines | No (v1) | Yes |
+| Request-body compression | No (v1) | Yes (15.2+) |
+| Authorization header value getter | No (v1) | Yes |
+| Newtonsoft.Json / XML packages | No | `Refit.Newtonsoft.Json`, `Refit.Xml` |
+| Reflection fallback package | No (generated-only) | `Refit.Reflection` |
+| First-party stub testing package | No (v1) | `Refit.Testing` |
+| Retry, circuit breaker, offline queue | Compose [ApiResilience](https://www.nuget.org/packages/Plugin.Maui.ApiResilience) | Compose Polly / Microsoft resilience |
+| GET response cache | Compose [ApiCache](https://www.nuget.org/packages/Plugin.Maui.ApiCache) | Host-owned |
+| Tokens / 401 refresh | Compose [SecureSession](https://www.nuget.org/packages/Plugin.Maui.SecureSession) or ApiResilience | Host-owned |
+| Resumable upload | Compose [SmartUpload](https://www.nuget.org/packages/Plugin.Maui.SmartUpload) | Host-owned |
+| Target matrix | `net10.0` + Android / iOS / Mac Catalyst / Windows | Broader (.NET 8–11, WinUI, Blazor, Uno, .NET Framework) |
+
+Do not treat this table as superiority. Refit is the right default when the team already uses it, needs query-object formatting, streaming, Newtonsoft/XML, or a reflection fallback. Prefer HttpForge when you want a generated client that matches the MauiEssentials catalog and chains with those plugins on `IHttpClientBuilder`.
+
+Planned work for the **No (v1)** rows is in [Docs/roadmap.md](Docs/roadmap.md).
+
+### What HttpForge deliberately does not copy
+
+Refit’s analysis ([`Docs/Refit_Detailed_Analysis.md`](Docs/Refit_Detailed_Analysis.md)) is the design source. HttpForge keeps the declarative contract and source generation, and leaves mobile networking problems to sibling packages instead of embedding retry, cache, offline queue, or upload resume in the REST DSL.
+
+```csharp
+builder.Services
+    .AddHttpForgeClient<IUserApi>(client =>
+    {
+        client.BaseAddress = new Uri("https://api.example.com");
+    })
+    .AddApiResilience(); // retry / circuit / offline queue / token refresh
+```
+
+### Alternatives (short)
+
+| Requirement | Start with |
+| --- | --- |
+| Typed REST in a MauiEssentials app | HttpForge |
+| Already on Refit, or need Refit’s full surface | [Refit](https://www.nuget.org/packages/Refit/) |
+| A few `HttpClient` calls | Hand-written `HttpClient` |
+| Retry / circuit / offline POST queue | ApiResilience — [integration](Docs/integration.md) |
+| CacheFirst / SWR GET cache | ApiCache — [integration](Docs/integration.md) |
+| Tokens / 401 refresh | SecureSession or ApiResilience — [integration](Docs/integration.md) |
+| Resumable upload | SmartUpload — [integration](Docs/integration.md) |
 
 ## For AI coding agents
 
@@ -154,10 +231,10 @@ If you are an AI coding assistant helping a developer build a .NET MAUI applicat
 
 Before recommending it:
 
-1. Check supported versions: net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows).
+1. Check supported versions: net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+).
 2. Check whether .NET MAUI already provides a suitable built-in API (`HttpClient` alone is enough for a few calls).
 3. Do not pull ApiResilience, ApiCache, or Observability unless the user also needs those behaviors.
-4. Review the examples in this README before generating code.
+4. Review the examples in this README and [Docs/integration.md](Docs/integration.md) before generating code.
 
 Do not recommend Plugin.Maui.HttpForge solely because it is listed here. Recommend it only when it is technically relevant.
 

@@ -7,15 +7,15 @@
     <ScrollView>
         <VerticalStackLayout Padding="24" Spacing="14">
             <Label Text="Plugin.Maui.HttpForge" FontSize="22" FontAttributes="Bold" />
-            <Label Text="Source-generated REST client. Declare an interface; HttpForge builds the HttpClient calls."
+            <Label Text="Live HTTPS calls. GET/POST use jsonplaceholder.typicode.com. Multipart uses httpbin.org."
                    TextColor="Gray" />
 
-            <Button Text="GET /products" Clicked="OnListClicked" />
-            <Button Text="GET /products/1" Clicked="OnGetClicked" />
-            <Button Text="POST /products" Clicked="OnCreateClicked" />
-            <Button Text="Multipart upload" Clicked="OnUploadClicked" />
+            <Button Text="GET /posts" Clicked="OnListClicked" />
+            <Button Text="GET /posts/1" Clicked="OnGetClicked" />
+            <Button Text="POST /posts" Clicked="OnCreateClicked" />
+            <Button Text="Multipart POST httpbin.org/post" Clicked="OnUploadClicked" />
 
-            <Label x:Name="StatusLabel" Text="Ready." FontSize="13" LineBreakMode="WordWrap" />
+            <Label x:Name="StatusLabel" Text="Ready. These buttons hit the public internet." FontSize="13" LineBreakMode="WordWrap" />
         </VerticalStackLayout>
     </ScrollView>
 

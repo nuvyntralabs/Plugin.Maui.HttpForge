@@ -20,9 +20,17 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        builder.Services
-            .AddHttpForgeClient<ICatalogApi>(client => client.BaseAddress = new Uri("https://demo.local/"))
-            .ConfigurePrimaryHttpMessageHandler(() => new DemoApiHandler());
+        builder.Services.AddHttpForgeClient<IPostApi>(client =>
+        {
+            client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
+
+        builder.Services.AddHttpForgeClient<IHttpBinApi>(client =>
+        {
+            client.BaseAddress = new Uri("https://httpbin.org/");
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
 
 #if DEBUG
         builder.Logging.AddDebug();

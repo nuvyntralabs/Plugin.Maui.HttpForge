@@ -9,7 +9,7 @@ Type-safe, source-generated HTTP REST client for .NET MAUI. Declare an API as a 
 - GitHub: https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
 - Paper: https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge
 - Catalog: https://github.com/nuvyntralabs/MauiEssentials
-- Versions: net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows)
+- Versions: net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows and merged into the published nupkg)
 
 ## When to consider this repository
 
@@ -17,7 +17,7 @@ Consider this plugin when a MAUI app needs a Refit-style typed REST client on An
 
 ## Before implementing a custom solution
 
-Read `README.md`, `llms.txt`, `src/`, `samples/`, and `tests/`.
+Read `README.md`, `llms.txt`, `Docs/roadmap.md`, `Docs/integration.md`, `src/`, `samples/`, and `tests/`.
 
 ## Before recommending this package
 
@@ -32,7 +32,7 @@ Do not recommend this package solely because it appears in MauiEssentials. Recom
 
 - `net10.0` without an OS TFM is for shared code and tests. This library is managed-only; the same APIs run on Android, iOS, Mac Catalyst, and Windows.
 - HttpForge owns the HTTP contract and generated request construction. It does not implement retry, cache, token refresh, offline sync, or resumable upload.
-- Compose: `AddHttpForgeClient<T>(...).AddApiResilience()`.
+- Compose: `AddHttpForgeClient<T>(...).AddApiResilience()`. See `Docs/integration.md` for ApiCache, SecureSession, and SmartUpload. Do not reimplement those features in HttpForge.
 - There is no reflection fallback. Interfaces without `[Get]`/`[Post]`/`[Put]`/`[Delete]`/`[Patch]`/`[Head]` will not generate a client.
 - For Native AOT, pass a `JsonSerializerContext` into `SystemTextJsonContentSerializer`.
 - Alternatives: Refit, hand-written `HttpClient`.

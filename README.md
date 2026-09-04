@@ -21,6 +21,12 @@ var user = await api.GetUser(42);
 
 HttpForge is the contract layer. It does **not** replace [Plugin.Maui.ApiResilience](https://www.nuget.org/packages/Plugin.Maui.ApiResilience) (retry / circuit / offline queue), [Plugin.Maui.ApiCache](https://www.nuget.org/packages/Plugin.Maui.ApiCache), [Plugin.Maui.SecureSession](https://www.nuget.org/packages/Plugin.Maui.SecureSession), or [Plugin.Maui.SmartUpload](https://www.nuget.org/packages/Plugin.Maui.SmartUpload). Chain those on the same `IHttpClientBuilder`.
 
+## Documentation
+
+- [Integration](Docs/integration.md) — compose HttpForge with ApiResilience, ApiCache, SecureSession, and SmartUpload ([GitHub](https://github.com/nuvyntralabs/Plugin.Maui.HttpForge/blob/main/Docs/integration.md))
+- [Roadmap](Docs/roadmap.md)
+- White paper: https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge
+
 ## Install
 
 Package: [https://www.nuget.org/packages/Plugin.Maui.HttpForge](https://www.nuget.org/packages/Plugin.Maui.HttpForge)

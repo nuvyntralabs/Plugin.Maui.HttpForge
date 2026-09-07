@@ -126,7 +126,7 @@ Offline-first **writes** stay on OfflineSync, not ApiCache.
 
 ## SecureSession — tokens and session lock
 
-[Plugin.Maui.SecureSession](https://github.com/nuvyntralabs/Plugin.Maui.SecureSession) stores access/refresh tokens (via SecureStoragePlus), attaches `Bearer`, and retries once on 401. HttpForge does not attach `Authorization` by itself in v1.
+[Plugin.Maui.SecureSession](https://github.com/nuvyntralabs/Plugin.Maui.SecureSession) stores access/refresh tokens (via SecureStoragePlus), attaches `Bearer`, and retries once on 401. HttpForge can attach a static token via `AuthorizationHeaderValueGetter`; it does not refresh on 401.
 
 SecureSession targets **Android and iOS**. On Mac Catalyst or Windows, use ApiResilience `IAccessTokenProvider` instead.
 
@@ -298,7 +298,7 @@ builder.Services
 | Retry attributes on the HttpForge interface | Resilience belongs on the handler pipeline |
 | `IApiCache.GetAsync` around an HttpForge GET | Double-caches when `.AddApiCache()` is already on the client |
 | `.AddSecureSession()` and ApiResilience token refresh together | Two 401 refresh loops |
-| Authorization getter inside HttpForge | Use SecureSession or ApiResilience |
+| 401 refresh inside HttpForge | Use `AuthorizationHeaderValueGetter` only to attach a token; refresh with SecureSession or ApiResilience |
 | `[Multipart]` for multi-megabyte resume | Use SmartUpload |
 | SecureSession on Mac Catalyst / Windows | That plugin is Android + iOS |
 | Observability just to “see HTTP” | Use `ILogger` or Diagnostics breadcrumbs if you already have them |
@@ -308,8 +308,9 @@ builder.Services
 
 ## Related
 
-- HttpForge README — contract, Refit comparison
-- [Docs/roadmap.md](roadmap.md) — v1 gaps (query objects, streaming, testing package)
+- HttpForge README — contract
+- [Docs/refit-comparison.md](refit-comparison.md) — HttpForge 1.1.0 vs Refit 15
+- [Docs/roadmap.md](roadmap.md) — shipped 1.1 surface; reflection fallback is not planned
 - [Plugin.Maui.ApiResilience](https://github.com/nuvyntralabs/Plugin.Maui.ApiResilience)
 - [Plugin.Maui.ApiCache](https://github.com/nuvyntralabs/Plugin.Maui.ApiCache)
 - [Plugin.Maui.SecureSession](https://github.com/nuvyntralabs/Plugin.Maui.SecureSession)

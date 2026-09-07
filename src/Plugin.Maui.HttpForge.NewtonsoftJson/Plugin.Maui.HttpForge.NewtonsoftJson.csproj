@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>false</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <RootNamespace>Plugin.Maui.HttpForge.NewtonsoftJson</RootNamespace>
+    <AssemblyName>Plugin.Maui.HttpForge.NewtonsoftJson</AssemblyName>
+    <PackageId>Plugin.Maui.HttpForge.NewtonsoftJson</PackageId>
+    <Title>.NET MAUI HttpForge Newtonsoft.Json serializer</Title>
+    <Description>Optional Newtonsoft.Json content serializer for Plugin.Maui.HttpForge. Not referenced by the core package.</Description>
+    <PackageTags>dotnet-maui;maui;httpforge;newtonsoft;json</PackageTags>
+    <Authors>Niladri</Authors>
+    <Company>MauiEssentials</Company>
+    <Copyright>Copyright © 2026 Niladri</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/nuvyntralabs/Plugin.Maui.HttpForge</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Version>1.1.0</Version>
+    <PackageReleaseNotes>Optional Newtonsoft.Json serializer for HttpForge.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <ProjectReference Include="..\Plugin.Maui.HttpForge\Plugin.Maui.HttpForge.csproj" />
+  </ItemGroup>
+
+</Project>

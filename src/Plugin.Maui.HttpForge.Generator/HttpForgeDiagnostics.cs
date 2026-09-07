@@ -15,7 +15,7 @@ internal static class HttpForgeDiagnostics
     public static readonly DiagnosticDescriptor InvalidReturnType = new(
         id: "HFG002",
         title: "Invalid return type",
-        messageFormat: "Method '{0}' must return Task, Task<T>, Task<IApiResponse<T>>, or Task<ApiResponse<T>>",
+        messageFormat: "Method '{0}' must return Task, Task<T>, Task<IApiResponse<T>>, Task<ApiResponse<T>>, or IAsyncEnumerable<T>",
         category: "HttpForge",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -48,6 +48,38 @@ internal static class HttpForgeDiagnostics
         id: "HFG006",
         title: "Multiple CancellationToken parameters",
         messageFormat: "Method '{0}' has more than one CancellationToken parameter",
+        category: "HttpForge",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MultipleUrls = new(
+        id: "HFG007",
+        title: "Multiple [Url] parameters",
+        messageFormat: "Method '{0}' has more than one [Url] parameter",
+        category: "HttpForge",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor FormObjectWithoutMultipart = new(
+        id: "HFG008",
+        title: "[FormObject] requires [Multipart]",
+        messageFormat: "Method '{0}' has a [FormObject] parameter but is not [Multipart]",
+        category: "HttpForge",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidTimeout = new(
+        id: "HFG009",
+        title: "Invalid [Timeout]",
+        messageFormat: "Method '{0}' [Timeout] must be greater than zero milliseconds",
+        category: "HttpForge",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidUrlParameter = new(
+        id: "HFG010",
+        title: "Invalid [Url] parameter",
+        messageFormat: "Method '{0}' [Url] parameter must be string or System.Uri",
         category: "HttpForge",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);

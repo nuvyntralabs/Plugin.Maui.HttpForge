@@ -17,4 +17,23 @@ public sealed class HttpForgeSettings
     /// <see cref="ApiRequestException"/>.
     /// </summary>
     public Func<HttpResponseMessage, CancellationToken, Task<Exception?>>? ExceptionFactory { get; set; }
+
+    /// <summary>
+    /// Formats query keys (and flattened form keys). Defaults to
+    /// <see cref="UrlParameterKeyFormatter.None"/> (names as written).
+    /// </summary>
+    public UrlParameterKeyFormatter UrlParameterKeyFormatter { get; set; } = UrlParameterKeyFormatter.None;
+
+    /// <summary>
+    /// Optional hook that supplies an <c>Authorization</c> header value for each request.
+    /// This is not token refresh — compose ApiResilience or SecureSession for 401 retry.
+    /// </summary>
+    public Func<HttpRequestMessage, CancellationToken, Task<string?>>? AuthorizationHeaderValueGetter { get; set; }
+
+    /// <summary>
+    /// Compresses non-multipart request bodies. Defaults to
+    /// <see cref="RequestBodyCompression.None"/>. Method-level
+    /// <see cref="CompressRequestAttribute"/> overrides this.
+    /// </summary>
+    public RequestBodyCompression RequestBodyCompression { get; set; } = RequestBodyCompression.None;
 }

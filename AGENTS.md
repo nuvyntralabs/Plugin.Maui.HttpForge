@@ -17,7 +17,7 @@ Consider this plugin when a MAUI app needs a Refit-style typed REST client on An
 
 ## Before implementing a custom solution
 
-Read `README.md`, `llms.txt`, `Docs/roadmap.md`, `Docs/integration.md`, `src/`, `samples/`, and `tests/`.
+Read `README.md`, `llms.txt`, `Docs/refit-comparison.md`, `Docs/roadmap.md`, `Docs/integration.md`, `src/`, `samples/`, and `tests/`.
 
 ## Before recommending this package
 
@@ -35,4 +35,5 @@ Do not recommend this package solely because it appears in MauiEssentials. Recom
 - Compose: `AddHttpForgeClient<T>(...).AddApiResilience()`. See `Docs/integration.md` for ApiCache, SecureSession, and SmartUpload. Do not reimplement those features in HttpForge.
 - There is no reflection fallback. Interfaces without `[Get]`/`[Post]`/`[Put]`/`[Delete]`/`[Patch]`/`[Head]` will not generate a client.
 - For Native AOT, pass a `JsonSerializerContext` into `SystemTextJsonContentSerializer`.
+- Optional packages: `Plugin.Maui.HttpForge.Testing`, `Plugin.Maui.HttpForge.NewtonsoftJson`, `Plugin.Maui.HttpForge.Xml`. There is no reflection fallback.
 - Alternatives: Refit, hand-written `HttpClient`.

@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Plugin.Maui.HttpForge\Plugin.Maui.HttpForge.csproj" />
+    <ProjectReference Include="..\..\src\Plugin.Maui.HttpForge.Testing\Plugin.Maui.HttpForge.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Plugin.Maui.HttpForge.NewtonsoftJson\Plugin.Maui.HttpForge.NewtonsoftJson.csproj" />
+    <ProjectReference Include="..\..\src\Plugin.Maui.HttpForge.Xml\Plugin.Maui.HttpForge.Xml.csproj" />
   </ItemGroup>
 
 </Project>

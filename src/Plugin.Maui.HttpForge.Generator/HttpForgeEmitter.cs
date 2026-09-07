@@ -61,32 +61,58 @@ internal static class HttpForgeEmitter
 
     private static void EmitMethod(StringBuilder builder, ApiMethodModel method)
     {
+        var isStream = method.ReturnKind == ReturnKinds.Stream;
         builder.Append("    public async ");
         builder.Append(GetReturnType(method));
         builder.Append(' ');
         builder.Append(method.Name);
         builder.Append('(');
-        builder.Append(string.Join(", ", method.Parameters.AsImmutableArray().Select(FormatParameter)));
+        builder.Append(string.Join(", ", method.Parameters.AsImmutableArray().Select(p => FormatParameter(p, isStream))));
         builder.AppendLine(")");
         builder.AppendLine("    {");
 
         var pathParams = method.Parameters.AsImmutableArray().Where(p => p.Kind == ParameterKinds.Path).ToArray();
         var queryParams = method.Parameters.AsImmutableArray().Where(p => p.Kind == ParameterKinds.Query).ToArray();
+        var flags = method.Parameters.AsImmutableArray().Where(p => p.Kind == ParameterKinds.QueryFlag).ToArray();
         var body = method.Parameters.AsImmutableArray().FirstOrDefault(p => p.Kind == ParameterKinds.Body);
+        var url = method.Parameters.AsImmutableArray().FirstOrDefault(p => p.Kind == ParameterKinds.Url);
         var cancel = method.Parameters.AsImmutableArray().FirstOrDefault(p => p.Kind == ParameterKinds.Cancel);
         var cancelExpr = cancel.Name is { Length: > 0 } ? cancel.Name : "default";
+        var invokeCancel = cancelExpr;
 
-        builder.Append("        var __path = ");
-        builder.Append(BuildPathExpression(method.Path, pathParams));
-        builder.AppendLine(";");
-
-        if (queryParams.Length > 0)
+        if (!isStream && method.TimeoutMilliseconds > 0)
         {
-            builder.AppendLine("        var __query = new HttpForgeQueryBuilder();");
-            foreach (var parameter in queryParams)
+            builder.Append("        using var __timeoutCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(").Append(cancelExpr).AppendLine(");");
+            builder.Append("        __timeoutCts.CancelAfter(").Append(method.TimeoutMilliseconds).AppendLine(");");
+            builder.AppendLine("        var __ct = __timeoutCts.Token;");
+            invokeCancel = "__ct";
+        }
+
+        if (url.Name is { Length: > 0 })
+        {
+            builder.Append("        var __path = HttpForgeInvoker.FormatUrl(").Append(url.Name).AppendLine(");");
+        }
+        else
+        {
+            var pathExpr = BuildPathExpression(method.Path, pathParams);
+            if (!string.IsNullOrEmpty(method.PathPrefix))
             {
-                builder.Append("        __query.Add(\"").Append(Escape(parameter.WireName)).Append("\", ").Append(parameter.Name).AppendLine(");");
+                builder.Append("        var __path = HttpForgeInvoker.CombinePath(\"").Append(Escape(method.PathPrefix!)).Append("\", ").Append(pathExpr).AppendLine(");");
             }
+            else
+            {
+                builder.Append("        var __path = ").Append(pathExpr).AppendLine(";");
+            }
+        }
+
+        if (queryParams.Length > 0 || flags.Length > 0)
+        {
+            builder.AppendLine("        var __query = new HttpForgeQueryBuilder(_settings);");
+            foreach (var parameter in queryParams)
+                EmitQueryAdd(builder, parameter);
+
+            foreach (var parameter in flags)
+                EmitFlagAdd(builder, parameter);
 
             builder.AppendLine("        __path += __query.ToString();");
         }
@@ -106,21 +132,71 @@ internal static class HttpForgeEmitter
         if (method.IsMultipart)
         {
             builder.AppendLine("        var __content = new MultipartFormDataContent();");
-            foreach (var parameter in method.Parameters.AsImmutableArray().Where(p => p.Kind == ParameterKinds.Multipart))
+            foreach (var parameter in method.Parameters.AsImmutableArray())
             {
-                builder.Append("        HttpForgeMultipart.AddPart(__content, \"").Append(Escape(parameter.WireName)).Append("\", ").Append(parameter.Name).AppendLine(");");
+                if (parameter.Kind == ParameterKinds.FormObject)
+                {
+                    builder.Append("        HttpForgeMultipart.AddFormObject(__content, ").Append(parameter.Name).AppendLine(", _settings.UrlParameterKeyFormatter);");
+                }
+                else if (parameter.Kind == ParameterKinds.Multipart)
+                {
+                    builder.Append("        HttpForgeMultipart.AddPart(__content, \"").Append(Escape(parameter.WireName)).Append("\", ").Append(parameter.Name).AppendLine(");");
+                }
             }
 
             builder.AppendLine("        __request.Content = __content;");
         }
         else if (body.Name is { Length: > 0 })
         {
-            builder.Append("        __request.Content = await _settings.ContentSerializer.ToHttpContentAsync(").Append(body.Name).Append(", ").Append(cancelExpr).AppendLine(").ConfigureAwait(false);");
+            if (body.BodySerialization == "JsonLines")
+            {
+                builder.Append("        __request.Content = await HttpForgeInvoker.ToJsonLinesContentAsync((System.Collections.IEnumerable)").Append(body.Name).Append(", _settings, ").Append(invokeCancel).AppendLine(").ConfigureAwait(false);");
+            }
+            else
+            {
+                builder.Append("        __request.Content = await _settings.ContentSerializer.ToHttpContentAsync(").Append(body.Name).Append(", ").Append(invokeCancel).AppendLine(").ConfigureAwait(false);");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(method.RequestCompression))
+        {
+            builder.Append("        HttpForgeInvoker.ApplyRequestCompression(__request, Plugin.Maui.HttpForge.RequestBodyCompression.").Append(method.RequestCompression).AppendLine(");");
+        }
+        else
+        {
+            builder.AppendLine("        HttpForgeInvoker.ApplyRequestCompression(__request, _settings.RequestBodyCompression);");
         }
 
         builder.Append("        ");
-        builder.AppendLine(GetInvokeStatement(method, cancelExpr));
+        builder.AppendLine(GetInvokeStatement(method, invokeCancel));
         builder.AppendLine("    }");
+    }
+
+    private static void EmitQueryAdd(StringBuilder builder, ParameterModel parameter)
+    {
+        var format = "Plugin.Maui.HttpForge.CollectionFormat." + parameter.CollectionFormat;
+        if (parameter.Flatten)
+        {
+            builder.Append("        __query.AddObject(").Append(parameter.Name).Append(", ").Append(format).AppendLine(");");
+            return;
+        }
+
+        builder.Append("        __query.Add(\"").Append(Escape(parameter.WireName)).Append("\", ").Append(parameter.Name);
+        if (!string.Equals(parameter.CollectionFormat, "Multi", StringComparison.Ordinal))
+            builder.Append(", ").Append(format);
+        builder.AppendLine(");");
+    }
+
+    private static void EmitFlagAdd(StringBuilder builder, ParameterModel parameter)
+    {
+        if (IsBooleanType(parameter.TypeFullName))
+        {
+            builder.Append("        if (").Append(parameter.Name).AppendLine(")");
+            builder.Append("            __query.AddFlag(\"").Append(Escape(parameter.WireName)).AppendLine("\");");
+            return;
+        }
+
+        builder.Append("        __query.AddFlag(").Append(parameter.Name).AppendLine(" is string __flag ? __flag : System.Convert.ToString(").Append(parameter.Name).AppendLine(", System.Globalization.CultureInfo.InvariantCulture));");
     }
 
     private static string GetReturnType(ApiMethodModel method) => method.ReturnKind switch
@@ -128,6 +204,7 @@ internal static class HttpForgeEmitter
         ReturnKinds.Void => "System.Threading.Tasks.Task",
         ReturnKinds.HttpResponse => "System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage>",
         ReturnKinds.ApiResponse => "System.Threading.Tasks.Task<Plugin.Maui.HttpForge.IApiResponse<" + method.ResponseType + ">>",
+        ReturnKinds.Stream => "System.Collections.Generic.IAsyncEnumerable<" + method.ResponseType + ">",
         _ => "System.Threading.Tasks.Task<" + method.ResponseType + ">"
     };
 
@@ -135,12 +212,15 @@ internal static class HttpForgeEmitter
     {
         ReturnKinds.Void => $"await HttpForgeInvoker.SendAsync(_client, __request, _settings, {cancelExpr}).ConfigureAwait(false);",
         ReturnKinds.ApiResponse => $"return await HttpForgeInvoker.SendApiResponseAsync<{method.ResponseType}>(_client, __request, _settings, {cancelExpr}).ConfigureAwait(false);",
+        ReturnKinds.Stream => $"await foreach (var __item in HttpForgeInvoker.StreamAsync<{method.ResponseType}>(_client, __request, _settings, {cancelExpr}, {method.TimeoutMilliseconds}).ConfigureAwait(false)) yield return __item;",
         _ => $"return await HttpForgeInvoker.SendAsync<{method.ResponseType}>(_client, __request, _settings, {cancelExpr}).ConfigureAwait(false);"
     };
 
-    private static string FormatParameter(ParameterModel parameter)
+    private static string FormatParameter(ParameterModel parameter, bool enumeratorCancellation = false)
     {
         var result = parameter.TypeFullName + " " + parameter.Name;
+        if (enumeratorCancellation && parameter.Kind == ParameterKinds.Cancel)
+            result = "[System.Runtime.CompilerServices.EnumeratorCancellation] " + result;
         if (parameter.HasDefault)
             result += " = " + parameter.DefaultLiteral;
         return result;
@@ -159,19 +239,41 @@ internal static class HttpForgeEmitter
                 break;
             }
 
-            if (start > 0)
-                parts.Add(Quote(remaining.Substring(0, start)));
-
+            var literal = start > 0 ? remaining.Substring(0, start) : string.Empty;
             var end = remaining.IndexOf('}', start);
             if (end < 0)
             {
-                parts.Add(Quote(remaining.Substring(start)));
+                parts.Add(Quote(remaining.Substring(start > 0 ? 0 : start)));
                 break;
             }
 
-            var token = remaining.Substring(start + 1, end - start - 1);
-            var parameter = pathParams.FirstOrDefault(p => p.WireName == token);
-            parts.Add("HttpForgeInvoker.FormatPathValue(" + (parameter.Name ?? "null") + ")");
+            var tokenRaw = remaining.Substring(start + 1, end - start - 1);
+            var optional = tokenRaw.EndsWith("?", StringComparison.Ordinal);
+            var token = optional ? tokenRaw.Substring(0, tokenRaw.Length - 1) : tokenRaw;
+            var parameter = pathParams.FirstOrDefault(p => p.WireName == token || p.Name == token);
+
+            if (optional)
+            {
+                var slash = string.Empty;
+                if (literal.EndsWith("/", StringComparison.Ordinal))
+                {
+                    slash = "/";
+                    literal = literal.Substring(0, literal.Length - 1);
+                }
+
+                if (literal.Length > 0)
+                    parts.Add(Quote(literal));
+
+                var name = parameter.Name ?? "null";
+                parts.Add("(" + name + " is null ? \"\" : \"" + slash + "\" + HttpForgeInvoker.FormatPathValue(" + name + "))");
+            }
+            else
+            {
+                if (literal.Length > 0)
+                    parts.Add(Quote(literal));
+                parts.Add("HttpForgeInvoker.FormatPathValue(" + (parameter.Name ?? "null") + ")");
+            }
+
             remaining = remaining.Substring(end + 1);
         }
 
@@ -180,6 +282,9 @@ internal static class HttpForgeEmitter
 
         return string.Join(" + ", parts);
     }
+
+    private static bool IsBooleanType(string typeFullName)
+        => typeFullName is "bool" or "bool?" or "global::System.Boolean" or "global::System.Boolean?";
 
     private static string Quote(string value) => "\"" + Escape(value) + "\"";
 

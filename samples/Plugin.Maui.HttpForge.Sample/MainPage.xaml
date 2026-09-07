@@ -2,20 +2,47 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Plugin.Maui.HttpForge.Sample.MainPage"
-             Title="HttpForge">
+             Title="HttpForge 1.1">
 
     <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="14">
-            <Label Text="Plugin.Maui.HttpForge" FontSize="22" FontAttributes="Bold" />
-            <Label Text="Live HTTPS calls. GET/POST use jsonplaceholder.typicode.com. Multipart uses httpbin.org."
-                   TextColor="Gray" />
+        <VerticalStackLayout x:Name="ButtonHost" Padding="24" Spacing="10">
+            <Label Text="Plugin.Maui.HttpForge 1.1" FontSize="22" FontAttributes="Bold" />
+            <Label Text="Each button is a live HTTPS call. jsonplaceholder = posts. httpbin = echo of query/headers/body. Wikimedia EventStreams = SSE."
+                   TextColor="Gray" FontSize="13" LineBreakMode="WordWrap" />
 
-            <Button Text="GET /posts" Clicked="OnListClicked" />
+            <Label Text="v1 — posts" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Button Text="GET /posts (PathPrefix)" Clicked="OnListClicked" />
             <Button Text="GET /posts/1" Clicked="OnGetClicked" />
             <Button Text="POST /posts" Clicked="OnCreateClicked" />
-            <Button Text="Multipart POST httpbin.org/post" Clicked="OnUploadClicked" />
+            <Button Text="Multipart file → httpbin" Clicked="OnUploadClicked" />
 
-            <Label x:Name="StatusLabel" Text="Ready. These buttons hit the public internet." FontSize="13" LineBreakMode="WordWrap" />
+            <Label Text="Query objects, collections, naming" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Button Text="Query object userId=1 (camelCase)" Clicked="OnQueryObjectClicked" />
+            <Button Text="Echo query DisplayName + Page" Clicked="OnEchoQueryClicked" />
+            <Button Text="Collection Multi ages=1&amp;2" Clicked="OnAgesMultiClicked" />
+            <Button Text="Collection Csv ages=1,2" Clicked="OnAgesCsvClicked" />
+
+            <Label Text="Routes, timeout, URL, flags" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Button Text="PathPrefix comments /posts/1/comments" Clicked="OnCommentsClicked" />
+            <Button Text="Optional segment with orderId" Clicked="OnOrdersWithIdClicked" />
+            <Button Text="Optional segment without orderId" Clicked="OnOrdersWithoutIdClicked" />
+            <Button Text="[Url] absolute httpbin /get" Clicked="OnAbsoluteUrlClicked" />
+            <Button Text="[QueryName] ?archived" Clicked="OnFlagsClicked" />
+            <Button Text="[Timeout] cancel /delay/8 at 2s" Clicked="OnTimeoutClicked" />
+
+            <Label Text="Auth, form, compression, streams" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Button Text="Authorization getter (Bearer)" Clicked="OnAuthClicked" />
+            <Button Text="[FormObject] name + address.city" Clicked="OnFormObjectClicked" />
+            <Button Text="Gzip [Body] POST" Clicked="OnGzipClicked" />
+            <Button Text="JSON Lines POST" Clicked="OnJsonLinesClicked" />
+            <Button Text="IAsyncEnumerable httpbin /stream/3" Clicked="OnStreamClicked" />
+            <Button Text="SSE Wikimedia recentchange" Clicked="OnSseClicked" />
+
+            <Label x:Name="StatusLabel"
+                   Text="Ready. Tap a button on the phone — the result is the live response (or the expected timeout)."
+                   FontSize="13"
+                   LineBreakMode="WordWrap"
+                   Margin="0,8,0,16" />
         </VerticalStackLayout>
     </ScrollView>
 

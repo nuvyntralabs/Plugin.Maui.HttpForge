@@ -71,9 +71,20 @@ public sealed class HeadAttribute : HttpMethodAttribute
 [AttributeUsage(AttributeTargets.Parameter)]
 public sealed class BodyAttribute : Attribute
 {
+    public BodyAttribute()
+    {
+    }
+
+    public BodyAttribute(BodySerializationMethod serializationMethod)
+    {
+        SerializationMethod = serializationMethod;
+    }
+
+    /// <summary>Defaults to <see cref="BodySerializationMethod.Default"/> (JSON).</summary>
+    public BodySerializationMethod SerializationMethod { get; set; } = BodySerializationMethod.Default;
 }
 
-/// <summary>Marks a parameter as a query string value.</summary>
+/// <summary>Marks a parameter as a query string value, collection, or flattened object.</summary>
 [AttributeUsage(AttributeTargets.Parameter)]
 public sealed class QueryAttribute : Attribute
 {
@@ -86,8 +97,22 @@ public sealed class QueryAttribute : Attribute
         Name = name;
     }
 
+    public QueryAttribute(CollectionFormat collectionFormat)
+    {
+        CollectionFormat = collectionFormat;
+    }
+
+    public QueryAttribute(string name, CollectionFormat collectionFormat)
+    {
+        Name = name;
+        CollectionFormat = collectionFormat;
+    }
+
     /// <summary>Query key. Defaults to the parameter name or <see cref="AliasAsAttribute"/>.</summary>
     public string? Name { get; }
+
+    /// <summary>How collection values are written. Defaults to <see cref="CollectionFormat.Multi"/>.</summary>
+    public CollectionFormat CollectionFormat { get; set; } = CollectionFormat.Multi;
 }
 
 /// <summary>Sends the parameter as a request header.</summary>
@@ -131,4 +156,85 @@ public sealed class AliasAsAttribute : Attribute
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class MultipartAttribute : Attribute
 {
+}
+
+/// <summary>
+/// Cancels this call after the given milliseconds. App-wide timeouts stay on
+/// <see cref="HttpClient"/> or ApiResilience.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class TimeoutAttribute : Attribute
+{
+    public TimeoutAttribute(int milliseconds)
+    {
+        Milliseconds = milliseconds;
+    }
+
+    public int Milliseconds { get; }
+}
+
+/// <summary>
+/// Replaces the method path with this parameter (string or <see cref="Uri"/>).
+/// A runtime URL changes the trust boundary — validate the value before calling
+/// (SSRF risk if the host accepts untrusted input).
+/// </summary>
+[AttributeUsage(AttributeTargets.Parameter)]
+public sealed class UrlAttribute : Attribute
+{
+}
+
+/// <summary>Prepends a shared prefix to every method path on the interface.</summary>
+[AttributeUsage(AttributeTargets.Interface)]
+public sealed class PathPrefixAttribute : Attribute
+{
+    public PathPrefixAttribute(string prefix)
+    {
+        Prefix = prefix ?? throw new ArgumentNullException(nameof(prefix));
+    }
+
+    public string Prefix { get; }
+}
+
+/// <summary>
+/// Writes a valueless query flag. A <c>string</c> value becomes the flag name
+/// (<c>?archived</c>). A <c>bool</c> uses the parameter (or alias) name when true.
+/// </summary>
+[AttributeUsage(AttributeTargets.Parameter)]
+public sealed class QueryNameAttribute : Attribute
+{
+    public QueryNameAttribute()
+    {
+    }
+
+    public QueryNameAttribute(string name)
+    {
+        Name = name;
+    }
+
+    /// <summary>Flag name when the parameter is <c>bool</c>. Defaults to the parameter name.</summary>
+    public string? Name { get; }
+}
+
+/// <summary>
+/// Flattens an object into multipart form fields (<c>name</c>, <c>address.city</c>).
+/// Requires <see cref="MultipartAttribute"/> on the method.
+/// </summary>
+[AttributeUsage(AttributeTargets.Parameter)]
+public sealed class FormObjectAttribute : Attribute
+{
+}
+
+/// <summary>
+/// Gzip- or Brotli-encodes the request body and sets <c>Content-Encoding</c>.
+/// Skipped for multipart and already-encoded content. Not the default.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Interface)]
+public sealed class CompressRequestAttribute : Attribute
+{
+    public CompressRequestAttribute(RequestBodyCompression compression = RequestBodyCompression.Gzip)
+    {
+        Compression = compression;
+    }
+
+    public RequestBodyCompression Compression { get; }
 }

@@ -5,6 +5,9 @@
   <Folder Name="/src/">
     <Project Path="src/Plugin.Maui.HttpForge/Plugin.Maui.HttpForge.csproj" />
     <Project Path="src/Plugin.Maui.HttpForge.Generator/Plugin.Maui.HttpForge.Generator.csproj" />
+    <Project Path="src/Plugin.Maui.HttpForge.Testing/Plugin.Maui.HttpForge.Testing.csproj" />
+    <Project Path="src/Plugin.Maui.HttpForge.NewtonsoftJson/Plugin.Maui.HttpForge.NewtonsoftJson.csproj" />
+    <Project Path="src/Plugin.Maui.HttpForge.Xml/Plugin.Maui.HttpForge.Xml.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Plugin.Maui.HttpForge.Tests/Plugin.Maui.HttpForge.Tests.csproj" />

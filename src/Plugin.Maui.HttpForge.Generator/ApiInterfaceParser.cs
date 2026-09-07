@@ -7,7 +7,7 @@ namespace Plugin.Maui.HttpForge.Generator;
 
 internal static class ApiInterfaceParser
 {
-    private static readonly Regex PathToken = new(@"\{([^{}]+)\}", RegexOptions.Compiled);
+    private static readonly Regex PathToken = new(@"\{([^{}?]+)(\?)?\}", RegexOptions.Compiled);
     private static readonly string[] HttpMethodNames =
     {
         "GetAttribute", "PostAttribute", "PutAttribute", "DeleteAttribute", "PatchAttribute", "HeadAttribute"
@@ -18,10 +18,12 @@ internal static class ApiInterfaceParser
         if (symbol.TypeKind != TypeKind.Interface || symbol.IsGenericType)
             return null;
 
+        var pathPrefix = ReadPathPrefix(symbol);
+        var interfaceCompression = ReadCompression(symbol);
         var methods = new List<ApiMethodModel>();
         foreach (var member in GetAllMethods(symbol))
         {
-            var parsed = TryParseMethod(member, symbol, report);
+            var parsed = TryParseMethod(member, symbol, pathPrefix, interfaceCompression, report);
             if (parsed is not null)
                 methods.Add(parsed.Value);
         }
@@ -38,6 +40,8 @@ internal static class ApiInterfaceParser
             InterfaceName: symbol.Name,
             TypeFullName: symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             HintName: SanitizeHint(symbol.ToDisplayString()),
+            PathPrefix: pathPrefix,
+            RequestCompression: interfaceCompression,
             InterfaceHeaders: new EquatableArray<string>(ReadHeaders(symbol)),
             Methods: new EquatableArray<ApiMethodModel>(methods));
     }
@@ -61,7 +65,12 @@ internal static class ApiInterfaceParser
         }
     }
 
-    private static ApiMethodModel? TryParseMethod(IMethodSymbol method, INamedTypeSymbol owner, Action<Diagnostic> report)
+    private static ApiMethodModel? TryParseMethod(
+        IMethodSymbol method,
+        INamedTypeSymbol owner,
+        string? pathPrefix,
+        string? interfaceCompression,
+        Action<Diagnostic> report)
     {
         var httpAttrs = method.GetAttributes()
             .Where(IsHttpMethodAttribute)
@@ -82,6 +91,12 @@ internal static class ApiInterfaceParser
         var httpMethod = ReadHttpMethod(http);
         var path = ReadConstructorString(http) ?? "/";
         var isMultipart = method.GetAttributes().Any(a => a.AttributeClass?.Name == "MultipartAttribute");
+        var timeout = ReadTimeout(method);
+        if (timeout < 0)
+        {
+            report(Diagnostic.Create(HttpForgeDiagnostics.InvalidTimeout, location, method.Name));
+            return null;
+        }
 
         if (!TryGetReturnKind(method.ReturnType, out var returnKind, out var responseType))
         {
@@ -93,6 +108,8 @@ internal static class ApiInterfaceParser
         var parameters = new List<ParameterModel>();
         var bodyCount = 0;
         var cancelCount = 0;
+        var urlCount = 0;
+        var formObjectCount = 0;
 
         foreach (var parameter in method.Parameters)
         {
@@ -101,6 +118,10 @@ internal static class ApiInterfaceParser
                 bodyCount++;
             if (parsed.Kind == ParameterKinds.Cancel)
                 cancelCount++;
+            if (parsed.Kind == ParameterKinds.Url)
+                urlCount++;
+            if (parsed.Kind == ParameterKinds.FormObject)
+                formObjectCount++;
             parameters.Add(parsed);
         }
 
@@ -122,15 +143,40 @@ internal static class ApiInterfaceParser
             return null;
         }
 
-        var pathNames = new HashSet<string>(
-            parameters.Where(p => p.Kind == ParameterKinds.Path).Select(p => p.WireName),
-            StringComparer.Ordinal);
-        foreach (var token in tokens)
+        if (urlCount > 1)
         {
-            if (!pathNames.Contains(token))
+            report(Diagnostic.Create(HttpForgeDiagnostics.MultipleUrls, location, method.Name));
+            return null;
+        }
+
+        if (formObjectCount > 0 && !isMultipart)
+        {
+            report(Diagnostic.Create(HttpForgeDiagnostics.FormObjectWithoutMultipart, location, method.Name));
+            return null;
+        }
+
+        if (urlCount == 1)
+        {
+            var url = parameters.First(p => p.Kind == ParameterKinds.Url);
+            if (!IsUrlType(url.TypeFullName))
             {
-                report(Diagnostic.Create(HttpForgeDiagnostics.MissingPathParameter, location, method.Name, path, token));
+                report(Diagnostic.Create(HttpForgeDiagnostics.InvalidUrlParameter, location, method.Name));
                 return null;
+            }
+        }
+
+        if (urlCount == 0)
+        {
+            var pathNames = new HashSet<string>(
+                parameters.Where(p => p.Kind == ParameterKinds.Path).Select(p => p.WireName),
+                StringComparer.Ordinal);
+            foreach (var token in tokens)
+            {
+                if (!pathNames.Contains(token))
+                {
+                    report(Diagnostic.Create(HttpForgeDiagnostics.MissingPathParameter, location, method.Name, path, token));
+                    return null;
+                }
             }
         }
 
@@ -147,6 +193,9 @@ internal static class ApiInterfaceParser
             ReturnKind: returnKind,
             ResponseType: responseType,
             IsMultipart: isMultipart,
+            TimeoutMilliseconds: timeout,
+            PathPrefix: pathPrefix,
+            RequestCompression: ReadCompression(method) ?? interfaceCompression,
             Headers: new EquatableArray<string>(headers),
             Parameters: new EquatableArray<ParameterModel>(parameters));
     }
@@ -162,33 +211,59 @@ internal static class ApiInterfaceParser
         var wireName = queryName ?? alias ?? parameter.Name;
         var hasDefault = parameter.HasExplicitDefaultValue;
         var defaultLiteral = hasDefault ? FormatDefault(parameter) : "default";
+        var collectionFormat = ReadCollectionFormat(parameter);
+        var flatten = IsQueryObject(parameter.Type);
+        var bodySerialization = ReadBodySerialization(parameter);
+        var optionalPath = tokens.Contains(alias ?? parameter.Name) || tokens.Contains(wireName);
+
+        ParameterModel Create(string kind, string? header = null, bool optional = false) => new(
+            parameter.Name,
+            typeName,
+            kind,
+            wireName,
+            header,
+            hasDefault,
+            defaultLiteral,
+            collectionFormat,
+            flatten,
+            optional,
+            bodySerialization);
 
         if (IsCancellationToken(parameter.Type))
-        {
-            return new ParameterModel(parameter.Name, typeName, ParameterKinds.Cancel, wireName, null, hasDefault, defaultLiteral);
-        }
+            return Create(ParameterKinds.Cancel);
+
+        if (HasAttribute(parameter, "UrlAttribute"))
+            return Create(ParameterKinds.Url);
 
         if (headerName is not null)
+            return Create(ParameterKinds.Header, headerName);
+
+        if (HasAttribute(parameter, "QueryNameAttribute"))
         {
-            return new ParameterModel(parameter.Name, typeName, ParameterKinds.Header, wireName, headerName, hasDefault, defaultLiteral);
+            var flagName = ReadQueryNameFlag(parameter) ?? alias ?? parameter.Name;
+            return new ParameterModel(
+                parameter.Name, typeName, ParameterKinds.QueryFlag, flagName, null,
+                hasDefault, defaultLiteral, collectionFormat, flatten, false, bodySerialization);
         }
 
         if (HasAttribute(parameter, "BodyAttribute"))
-        {
-            return new ParameterModel(parameter.Name, typeName, ParameterKinds.Body, wireName, null, hasDefault, defaultLiteral);
-        }
+            return Create(ParameterKinds.Body);
+
+        if (HasAttribute(parameter, "FormObjectAttribute"))
+            return Create(ParameterKinds.FormObject);
 
         if (tokens.Contains(alias ?? parameter.Name) || tokens.Contains(wireName))
         {
-            return new ParameterModel(parameter.Name, typeName, ParameterKinds.Path, alias ?? parameter.Name, null, hasDefault, defaultLiteral);
+            var pathName = alias ?? parameter.Name;
+            return new ParameterModel(
+                parameter.Name, typeName, ParameterKinds.Path, pathName, null,
+                hasDefault, defaultLiteral, collectionFormat, false, optionalPath, bodySerialization);
         }
 
         if (isMultipart)
-        {
-            return new ParameterModel(parameter.Name, typeName, ParameterKinds.Multipart, wireName, null, hasDefault, defaultLiteral);
-        }
+            return Create(ParameterKinds.Multipart);
 
-        return new ParameterModel(parameter.Name, typeName, ParameterKinds.Query, wireName, null, hasDefault, defaultLiteral);
+        return Create(ParameterKinds.Query);
     }
 
     private static bool TryGetReturnKind(ITypeSymbol returnType, out string kind, out string? responseType)
@@ -198,6 +273,16 @@ internal static class ApiInterfaceParser
 
         if (returnType is not INamedTypeSymbol named)
             return false;
+
+        if (named.Name == "IAsyncEnumerable" &&
+            named.ContainingNamespace.ToDisplayString() == "System.Collections.Generic" &&
+            named.IsGenericType &&
+            named.TypeArguments.Length == 1)
+        {
+            kind = ReturnKinds.Stream;
+            responseType = named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            return true;
+        }
 
         if (named.Name != "Task" || named.ContainingNamespace.ToDisplayString() != "System.Threading.Tasks")
             return false;
@@ -243,24 +328,16 @@ internal static class ApiInterfaceParser
         return attribute.AttributeClass?.BaseType?.ToDisplayString() == "Plugin.Maui.HttpForge.HttpMethodAttribute";
     }
 
-    private static string ReadHttpMethod(AttributeData attribute)
+    private static string ReadHttpMethod(AttributeData attribute) => attribute.AttributeClass?.Name switch
     {
-        if (attribute.ConstructorArguments.Length >= 1 && attribute.ConstructorArguments[0].Value is string method && method.Length <= 7)
-        {
-            // GetAttribute(string path) — first arg is the path, method comes from the type name.
-        }
-
-        return attribute.AttributeClass?.Name switch
-        {
-            "GetAttribute" => "GET",
-            "PostAttribute" => "POST",
-            "PutAttribute" => "PUT",
-            "DeleteAttribute" => "DELETE",
-            "PatchAttribute" => "PATCH",
-            "HeadAttribute" => "HEAD",
-            _ => "GET"
-        };
-    }
+        "GetAttribute" => "GET",
+        "PostAttribute" => "POST",
+        "PutAttribute" => "PUT",
+        "DeleteAttribute" => "DELETE",
+        "PatchAttribute" => "PATCH",
+        "HeadAttribute" => "HEAD",
+        _ => "GET"
+    };
 
     private static string? ReadConstructorString(AttributeData attribute)
     {
@@ -313,10 +390,110 @@ internal static class ApiInterfaceParser
         return null;
     }
 
+    private static string? ReadQueryNameFlag(IParameterSymbol parameter)
+    {
+        var attribute = parameter.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "QueryNameAttribute");
+        if (attribute is null)
+            return null;
+
+        if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is string name)
+            return name;
+
+        return null;
+    }
+
+    private static string ReadCollectionFormat(IParameterSymbol parameter)
+    {
+        var attribute = parameter.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "QueryAttribute");
+        if (attribute is null)
+            return "Multi";
+
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Type?.Name == "CollectionFormat" && argument.Value is int value)
+                return CollectionFormatName(value);
+        }
+
+        foreach (var named in attribute.NamedArguments)
+        {
+            if (named.Key == "CollectionFormat" && named.Value.Value is int value)
+                return CollectionFormatName(value);
+        }
+
+        return "Multi";
+    }
+
+    private static string CollectionFormatName(int value) => value switch
+    {
+        1 => "Csv",
+        2 => "Ssv",
+        3 => "Tsv",
+        4 => "Pipes",
+        _ => "Multi"
+    };
+
+    private static string ReadBodySerialization(IParameterSymbol parameter)
+    {
+        var attribute = parameter.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "BodyAttribute");
+        if (attribute is null)
+            return "Default";
+
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Type?.Name == "BodySerializationMethod" && argument.Value is int value)
+                return value == 2 ? "JsonLines" : "Default";
+        }
+
+        foreach (var named in attribute.NamedArguments)
+        {
+            if (named.Key == "SerializationMethod" && named.Value.Value is int value)
+                return value == 2 ? "JsonLines" : "Default";
+        }
+
+        return "Default";
+    }
+
     private static string? ReadHeaderName(IParameterSymbol parameter)
     {
         var attribute = parameter.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "HeaderAttribute");
         return attribute?.ConstructorArguments.FirstOrDefault().Value as string;
+    }
+
+    private static int ReadTimeout(IMethodSymbol method)
+    {
+        var attribute = method.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "TimeoutAttribute");
+        if (attribute is null)
+            return 0;
+
+        if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is int milliseconds)
+            return milliseconds;
+
+        return 0;
+    }
+
+    private static string? ReadPathPrefix(ISymbol symbol)
+    {
+        var attribute = symbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "PathPrefixAttribute");
+        return attribute?.ConstructorArguments.FirstOrDefault().Value as string;
+    }
+
+    private static string? ReadCompression(ISymbol symbol)
+    {
+        var attribute = symbol.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "CompressRequestAttribute");
+        if (attribute is null)
+            return null;
+
+        if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is int value)
+        {
+            return value switch
+            {
+                2 => "Brotli",
+                0 => "None",
+                _ => "Gzip"
+            };
+        }
+
+        return "Gzip";
     }
 
     private static bool HasAttribute(IParameterSymbol parameter, string name)
@@ -324,6 +501,58 @@ internal static class ApiInterfaceParser
 
     private static bool IsCancellationToken(ITypeSymbol type)
         => type.Name == "CancellationToken" && type.ContainingNamespace.ToDisplayString() == "System.Threading";
+
+    private static bool IsUrlType(string typeFullName)
+        => typeFullName is "string" or "string?" or "global::System.String" or "global::System.String?"
+            or "global::System.Uri" or "global::System.Uri?";
+
+    private static bool IsQueryObject(ITypeSymbol type)
+    {
+        type = UnwrapNullable(type);
+        if (IsSimpleQueryType(type) || IsCollectionType(type))
+            return false;
+
+        return type.TypeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface;
+    }
+
+    private static bool IsSimpleQueryType(ITypeSymbol type)
+    {
+        type = UnwrapNullable(type);
+        if (type.SpecialType is not SpecialType.None and not SpecialType.System_Object)
+            return true;
+
+        if (type.TypeKind == TypeKind.Enum)
+            return true;
+
+        var name = type.ToDisplayString();
+        return name is "System.DateTime" or "System.DateTimeOffset" or "System.Guid"
+            or "System.TimeSpan" or "System.Uri" or "System.Decimal";
+    }
+
+    private static bool IsCollectionType(ITypeSymbol type)
+    {
+        type = UnwrapNullable(type);
+        if (type.SpecialType == SpecialType.System_String)
+            return false;
+
+        if (type is IArrayTypeSymbol)
+            return true;
+
+        return type.AllInterfaces.Any(i => i.OriginalDefinition.SpecialType == SpecialType.System_Collections_IEnumerable)
+               || type.SpecialType == SpecialType.System_Collections_IEnumerable;
+    }
+
+    private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
+    {
+        if (type is INamedTypeSymbol named &&
+            named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+            named.TypeArguments.Length == 1)
+        {
+            return named.TypeArguments[0];
+        }
+
+        return type;
+    }
 
     private static string FormatDefault(IParameterSymbol parameter)
     {

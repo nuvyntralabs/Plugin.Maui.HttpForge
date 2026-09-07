@@ -5,6 +5,8 @@ internal readonly record struct ApiInterfaceModel(
     string InterfaceName,
     string TypeFullName,
     string HintName,
+    string? PathPrefix,
+    string? RequestCompression,
     EquatableArray<string> InterfaceHeaders,
     EquatableArray<ApiMethodModel> Methods);
 
@@ -15,6 +17,9 @@ internal readonly record struct ApiMethodModel(
     string ReturnKind,
     string? ResponseType,
     bool IsMultipart,
+    int TimeoutMilliseconds,
+    string? PathPrefix,
+    string? RequestCompression,
     EquatableArray<string> Headers,
     EquatableArray<ParameterModel> Parameters);
 
@@ -25,7 +30,11 @@ internal readonly record struct ParameterModel(
     string WireName,
     string? HeaderName,
     bool HasDefault,
-    string DefaultLiteral);
+    string DefaultLiteral,
+    string CollectionFormat,
+    bool Flatten,
+    bool IsOptionalPath,
+    string BodySerialization);
 
 internal static class ParameterKinds
 {
@@ -35,6 +44,9 @@ internal static class ParameterKinds
     public const string Header = "Header";
     public const string Cancel = "Cancel";
     public const string Multipart = "Multipart";
+    public const string Url = "Url";
+    public const string QueryFlag = "QueryFlag";
+    public const string FormObject = "FormObject";
 }
 
 internal static class ReturnKinds
@@ -43,4 +55,5 @@ internal static class ReturnKinds
     public const string Value = "Value";
     public const string ApiResponse = "ApiResponse";
     public const string HttpResponse = "HttpResponse";
+    public const string Stream = "Stream";
 }

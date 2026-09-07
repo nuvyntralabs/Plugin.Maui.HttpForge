@@ -13,7 +13,18 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
-            .UseHttpForge()
+            .UseHttpForge(settings =>
+            {
+                settings.UrlParameterKeyFormatter = UrlParameterKeyFormatter.CamelCase;
+                settings.AuthorizationHeaderValueGetter = (request, _) =>
+                {
+                    var uri = request.RequestUri;
+                    var host = uri is { IsAbsoluteUri: true } ? uri.Host : "";
+                    if (host.Contains("httpbin.org", StringComparison.OrdinalIgnoreCase))
+                        return Task.FromResult<string?>("Bearer httpforge-sample");
+                    return Task.FromResult<string?>(null);
+                };
+            })
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -30,6 +41,14 @@ public static class MauiProgram
         {
             client.BaseAddress = new Uri("https://httpbin.org/");
             client.Timeout = TimeSpan.FromSeconds(20);
+        });
+
+        builder.Services.AddHttpForgeClient<ISseApi>(client =>
+        {
+            client.BaseAddress = new Uri("https://stream.wikimedia.org/");
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Plugin.Maui.HttpForge.Sample/1.1 (https://github.com/nuvyntralabs/Plugin.Maui.HttpForge)");
         });
 
 #if DEBUG

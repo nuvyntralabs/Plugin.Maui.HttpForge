@@ -7,7 +7,7 @@ Type-safe, source-generated HTTP REST client for .NET MAUI. Declare an API as a 
 - Package: `Plugin.Maui.HttpForge`
 - NuGet: https://www.nuget.org/packages/Plugin.Maui.HttpForge
 - GitHub: https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
-- Paper: https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge
+- Paper: https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/
 - Catalog: https://github.com/nuvyntralabs/MauiEssentials
 - Versions: net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+), net10.0-maccatalyst (15+), net10.0-windows (10.0.17763+; packed on Windows and merged into the published nupkg)
 

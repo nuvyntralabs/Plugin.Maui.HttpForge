@@ -22,7 +22,7 @@
     <PackageProjectUrl>https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/nuvyntralabs/Plugin.Maui.HttpForge</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <PackageReleaseNotes>Optional XXE-safe XML serializer for HttpForge.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

@@ -4,7 +4,7 @@ Type-safe, source-generated HTTP REST client for .NET MAUI. Declare an API as a 
 
 Repository: https://github.com/nuvyntralabs/Plugin.Maui.HttpForge
 NuGet: https://www.nuget.org/packages/Plugin.Maui.HttpForge
-Paper: https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge
+Paper: https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/
 Catalog: https://github.com/nuvyntralabs/MauiEssentials
 License: MIT
 
@@ -16,7 +16,7 @@ Platforms: Android, iOS, Mac Catalyst, and Windows.
 
 ## Current release
 
-1.1.0. Source-generated REST client plus query objects, collection formats, naming presets, [Timeout]/[Url]/[PathPrefix], optional segments, [QueryName]/[FormObject], IAsyncEnumerable streaming (JSON Lines / SSE), request compression, and AuthorizationHeaderValueGetter (absolute URI). Optional Testing, Newtonsoft.Json, and XML packages. Reflection fallback is not planned. Compare with Refit 15: Docs/refit-comparison.md.
+1.1.1. Source-generated REST client plus query objects, collection formats, naming presets, [Timeout]/[Url]/[PathPrefix], optional segments, [QueryName]/[FormObject], IAsyncEnumerable streaming (JSON Lines / SSE), request compression, and AuthorizationHeaderValueGetter (absolute URI). Optional Testing, Newtonsoft.Json, and XML packages. Reflection fallback is not planned. Compare with Refit 15: Docs/refit-comparison.md.
 
 ## Installation
 

@@ -26,7 +26,7 @@ HttpForge is the contract layer. It does **not** replace [Plugin.Maui.ApiResilie
 - [HttpForge vs Refit](Docs/refit-comparison.md) — 1.1.0 contract compared with Refit 15
 - [Integration](Docs/integration.md) — compose HttpForge with ApiResilience, ApiCache, SecureSession, and SmartUpload
 - [Roadmap](Docs/roadmap.md) — shipped 1.1 surface; reflection fallback is not planned
-- White paper: [https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge](https://niladripadhy.vercel.app/opensource/plugin-maui-httpforge)
+- Docs: [https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/](https://nuvyntralabs.github.io/packages/plugin-maui-httpforge/)
 
 
 

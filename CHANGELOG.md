@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.1.1
+
+- Point the README docs link at the Nuvyntra Labs package page.
 
 ## 1.1.0
 
